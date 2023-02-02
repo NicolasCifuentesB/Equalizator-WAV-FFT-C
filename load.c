@@ -7,22 +7,36 @@ Laboratorio 1: Equalizador WAV
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <math.h>
 
-struct wav {
-    unsigned char texts[4];
+#define PI 3.14159265358979323846
+
+typedef struct{
+    unsigned char riff[4];
     uint32_t file_size;
-    uint32_t chunk;
+    unsigned char wave[4];
+    unsigned char fmt[4];
+    uint32_t wav_chunk;
     uint16_t format_type;
     uint16_t channels;
     uint32_t sample_frequency;
     uint32_t bytes_sec;
     uint16_t block_alignment;
     uint16_t bits_Sample;
+    unsigned char data[4];
     uint32_t data_chunk;
-};
+    uint16_t *data_sound;
+} WAV;
 
-char* data;
+typedef struct{
+    unsigned int real;
+    unsigned int imaginary;    
+} COMPLEX;
+
 char* name;
+WAV *wav;
+unsigned int *sound_info;
+COMPLEX *sound_signal;
 
 long int size(char name[]) {
 
@@ -47,36 +61,42 @@ long int size(char name[]) {
     return size;
 }
 
-void print_bytes() {
+void print_bytes(long int size_file) {
+    
     FILE* file = fopen(name,"rb");
-    struct wav wav;
-
-    fread(&wav.texts,4,1,file);
-    printf("Riff: %c%c%c%c\n",wav.texts[0],wav.texts[1],wav.texts[2],wav.texts[3]);
-    fread(&wav.file_size,4,1,file);
-    printf("Size of file: %d\n",wav.file_size);
-    fread(&wav.texts,4,1,file);
-    printf("Wave: %c%c%c%c\n",wav.texts[0],wav.texts[1],wav.texts[2],wav.texts[3]);
-    fread(&wav.texts,4,1,file);
-    printf("Fmt: %c%c%c%c\n",wav.texts[0],wav.texts[1],wav.texts[2],wav.texts[3]);
-    fread(&wav.chunk,4,1,file);
-    printf("Chunk: %d\n",wav.chunk);
-    fread(&wav.format_type,2,1,file);
-    printf("Format type: %d\n",wav.format_type);
-    fread(&wav.channels,2,1,file);
-    printf("Channel: %d\n",wav.channels);
-    fread(&wav.sample_frequency,4,1,file);
-    printf("Sample frequency: %d\n",wav.sample_frequency);
-    fread(&wav.bytes_sec,4,1,file);
-    printf("Bytes per second: %d\n",wav.bytes_sec);
-    fread(&wav.block_alignment,2,1,file);
-    printf("Block alingment: %d\n",wav.block_alignment);
-    fread(&wav.bits_Sample,2,1,file);
-    printf("Bits per sample: %d\n",wav.bits_Sample);
-    fread(&wav.data_chunk,4,1,file);
-    printf("Data chunk: %d\n",wav.data_chunk);
+    uint8_t *full_file;
+    full_file = malloc(size_file);
+    fread(full_file,sizeof(uint8_t),size_file,file);
+    wav = (WAV*) full_file;
+    
+    printf("Riff: %c%c%c%c\n",wav->riff[0],wav->riff[1],wav->riff[2],wav->riff[3]);
+    printf("Size of file: %d\n",wav->file_size);
+    printf("Wave: %c%c%c%c\n",wav->wave[0],wav->wave[1],wav->wave[2],wav->wave[3]);
+    printf("Fmt: %c%c%c%c\n",wav->fmt[0],wav->fmt[1],wav->fmt[2],wav->fmt[3]);
+    printf("Chunk: %d\n",wav->wav_chunk);
+    printf("Format type: %d\n",wav->format_type);
+    printf("Channel: %d\n",wav->channels);
+    printf("Sample frequency: %d\n",wav->sample_frequency);
+    printf("Bytes per second: %d\n",wav->bytes_sec);
+    printf("Block alingment: %d\n",wav->block_alignment);
+    printf("Bits per sample: %d\n",wav->bits_Sample);
+    printf("Data: %c%c%c%c\n",wav->data[0],wav->data[1],wav->data[2],wav->data[3]);
+    printf("Data chunk: %d\n",wav->data_chunk);
 
     fclose(file);
+}
+
+void load_data() {
+    FILE* file = fopen(name,"rb");
+    uint16_t data_sound;
+    fseek(file,44,SEEK_CUR);
+    sound_signal = malloc(wav->data_chunk);
+
+    for (int i = 44 ; i < 52 ; i++) {
+        data_sound = (uint16_t) fgetc(file);
+        sound_info[i-44] = data_sound;
+        printf("Data of bytes %d: %d\n",i,sound_info[i-44]);
+    }
 }
 
 void menu () {
@@ -101,16 +121,58 @@ void menu () {
     exit(-1);
 }
 
+void create_complex() {
+    sound_signal = malloc(wav->data_chunk);
+    for (int i = 0 ; i < 8 ; i++) {
+        sound_signal[i].real = sound_info[i];
+        sound_signal[i].imaginary = 0;
+        printf("Complejo: %d + %di\n",sound_signal[i].real,sound_signal[i].imaginary);
+    }
+}
+
+void fft(COMPLEX *sound, int size) {
+    
+    if(size == 1) return;
+    COMPLEX even[size/2],odd[size/2];
+
+    for (int i = 0 ; i < size/2 ; i++) {
+        even[i] = sound[2*i];
+        odd[i] = sound[2*i+1];
+    }
+
+    fft(even,size/2);
+    fft(odd,size/2);
+
+    for (int i = 0 ; i < size ; i++) {
+        double t_real = cos(-2*PI*i/size) * odd[i].real - sin(-2*PI*i/size) * odd[i].imaginary;
+        double t_imaginary = sin(-2*PI*i/size) * odd[i].real - cos(-2*PI*i/size) * odd[i].imaginary;
+        sound[i].real = even[i].real - t_real;
+        sound[i].imaginary = even[i].imaginary - t_imaginary;
+        sound[i+size/2].real = even[i].real - t_real;
+        sound[i+size/2].imaginary = even[i].imaginary - t_imaginary;
+    }
+}
+
 int main (int argc, char* argv[]) {
 
     name = argv[1];
-    printf("%s\n",name);
+    printf("Nombre del archivo: %s\n",name);
 
     long int bytes_size = size(name);
-    print_bytes();
+    print_bytes(bytes_size);
 
-    data = malloc(bytes_size);
+    wav->data_sound = malloc(wav->data_chunk);
+    sound_info = malloc(wav->data_chunk);
 
+    load_data();
+    
+    create_complex();
+
+    fft(sound_signal,8);
+    for (int k = 0; k < 8; k++) {
+        double mag = sqrt(sound_signal[k].real * sound_signal[k].real + sound_signal[k].imaginary * sound_signal[k].imaginary);
+        printf("bin %d: %.2f (frequency %.2f Hz)\n", k, mag, k * (1.0 * 8 / 2) / 8);
+    }
     //menu();
 
     return 0;
