@@ -91,12 +91,20 @@ void load_data() {
     FILE* file = fopen(name,"rb");
     uint16_t data_sound;
     fseek(file,44,SEEK_CUR);
-    sound_signal = malloc(wav->data_chunk);
 
-    for (int i = 0 ; i < wav->data_chunk ; i++) {
+    for (int i = 0 ; i < wav->data_chunk ; i++) { //for (int i = 0 ; i < wav->data_chunk ; i++) {
         data_sound = fgetc(file);
         sound_info[i] = data_sound;
         //printf("Data of bytes %d: %d\n",i,sound_info[i]);
+    }
+}
+
+void create_complex() {
+    sound_signal = malloc(wav->data_chunk);
+    for (int i = 0 ; i < 8 ; i++) { //for (int i = 0 ; i < wav->data_chunk ; i++) {
+        sound_signal[i].real = sound_info[i];
+        sound_signal[i].imaginary = 0;
+        printf("Complejo: %d + %di\n",sound_signal[i].real,sound_signal[i].imaginary);
     }
 }
 
@@ -121,10 +129,6 @@ void fft(COMPLEX *sound, int size) {
         sound[i+size/2].real = even[i].real - (int) t_real;
         sound[i+size/2].imaginary = even[i].imaginary - (int) t_imaginary;
     }
-}
-
-void results(COMPLEX *moment){
-    
 }
 
 void second(){
@@ -155,12 +159,12 @@ void menu () {
         switch (option){
         case 1:
             printf("AVANZAR\n");
-            second();
+            //second();
             seconds++;
             break;
         case 2:
             printf("RETROCEDER\n");
-            second();
+            //second();
             seconds--;
             break;
         case 3:
@@ -171,15 +175,6 @@ void menu () {
         }
     }
     exit(-1);
-}
-
-void create_complex() {
-    sound_signal = malloc(wav->data_chunk);
-    for (int i = 0 ; i < wav->data_chunk ; i++) {
-        sound_signal[i].real = sound_info[i];
-        sound_signal[i].imaginary = 0;
-        //printf("Complejo: %d + %di\n",sound_signal[i].real,sound_signal[i].imaginary);
-    }
 }
 
 int main (int argc, char* argv[]) {
@@ -197,7 +192,7 @@ int main (int argc, char* argv[]) {
     
     create_complex();
     
-    menu();
+    //menu();
 
     return 0;
 }
