@@ -37,6 +37,7 @@ char* name;
 WAV *wav;
 unsigned int *sound_info;
 COMPLEX *sound_signal;
+int seconds = 0;
 
 long int size(char name[]) {
 
@@ -92,41 +93,10 @@ void load_data() {
     fseek(file,44,SEEK_CUR);
     sound_signal = malloc(wav->data_chunk);
 
-    for (int i = 44 ; i < 52 ; i++) {
-        data_sound = (uint16_t) fgetc(file);
-        sound_info[i-44] = data_sound;
-        printf("Data of bytes %d: %d\n",i,sound_info[i-44]);
-    }
-}
-
-void menu () {
-    int option;
-    while (option != 3) {
-        printf("--------------------\nIngrese una opcion:\n1 - Adelantar\n2 - Atrasar\n3 - Salir\n");
-        scanf("%d",&option);
-        switch (option){
-        case 1:
-            printf("AVANZAR\n");
-            break;
-        case 2:
-            printf("RETROCEDER\n");
-            break;
-        case 3:
-            printf("HASTA LUEGO!\n");
-            break;
-        default:
-            printf("Opcion invalida\n");
-        }
-    }
-    exit(-1);
-}
-
-void create_complex() {
-    sound_signal = malloc(wav->data_chunk);
-    for (int i = 0 ; i < 8 ; i++) {
-        sound_signal[i].real = sound_info[i];
-        sound_signal[i].imaginary = 0;
-        printf("Complejo: %d + %di\n",sound_signal[i].real,sound_signal[i].imaginary);
+    for (int i = 0 ; i < wav->data_chunk ; i++) {
+        data_sound = fgetc(file);
+        sound_info[i] = data_sound;
+        //printf("Data of bytes %d: %d\n",i,sound_info[i]);
     }
 }
 
@@ -146,10 +116,67 @@ void fft(COMPLEX *sound, int size) {
     for (int i = 0 ; i < size ; i++) {
         double t_real = cos(-2*PI*i/size) * odd[i].real - sin(-2*PI*i/size) * odd[i].imaginary;
         double t_imaginary = sin(-2*PI*i/size) * odd[i].real - cos(-2*PI*i/size) * odd[i].imaginary;
-        sound[i].real = even[i].real - t_real;
-        sound[i].imaginary = even[i].imaginary - t_imaginary;
-        sound[i+size/2].real = even[i].real - t_real;
-        sound[i+size/2].imaginary = even[i].imaginary - t_imaginary;
+        sound[i].real = even[i].real - (int) t_real;
+        sound[i].imaginary = even[i].imaginary - (int) t_imaginary;
+        sound[i+size/2].real = even[i].real - (int) t_real;
+        sound[i+size/2].imaginary = even[i].imaginary - (int) t_imaginary;
+    }
+}
+
+void results(COMPLEX *moment){
+    fft(moment,wav->bytes_sec);
+    for (int k = 0; k < 8; k++) {
+        double magnitude = (int) sqrt(moment[k].real * moment[k].real + moment[k].imaginary * moment[k].imaginary);
+        printf("bin %d: %.2f (frequency %.2f Hz)\n", k, magnitude, k * (1.0 * wav->bytes_sec / 2) / wav->bytes_sec);
+    }
+}
+
+void second(){
+    COMPLEX *temporal;
+    temporal = malloc(wav->bytes_sec);
+    int begin = seconds * wav->bytes_sec;
+    int end = (seconds + 1) * wav->bytes_sec;
+
+    for (int i = begin ; i < end ; i++) {
+        temporal[i].real = sound_signal[i].real;
+        temporal[i].imaginary = sound_signal[i].imaginary;
+    }
+
+    results(temporal);
+}
+
+void menu () {
+    int option;
+    while (option != 3) {
+        printf("--------------------\nIngrese una opcion:\n1 - Adelantar\n2 - Atrasar\n3 - Salir\n");
+        scanf("%d",&option);
+        switch (option){
+        case 1:
+            printf("AVANZAR\n");
+            second();
+            seconds++;
+            break;
+        case 2:
+            printf("RETROCEDER\n");
+            second();
+            seconds--;
+            break;
+        case 3:
+            printf("HASTA LUEGO!\n");
+            break;
+        default:
+            printf("Opcion invalida\n");
+        }
+    }
+    exit(-1);
+}
+
+void create_complex() {
+    sound_signal = malloc(wav->data_chunk);
+    for (int i = 0 ; i < wav->data_chunk ; i++) {
+        sound_signal[i].real = sound_info[i];
+        sound_signal[i].imaginary = 0;
+        //printf("Complejo: %d + %di\n",sound_signal[i].real,sound_signal[i].imaginary);
     }
 }
 
@@ -167,13 +194,8 @@ int main (int argc, char* argv[]) {
     load_data();
     
     create_complex();
-
-    fft(sound_signal,8);
-    for (int k = 0; k < 8; k++) {
-        double mag = sqrt(sound_signal[k].real * sound_signal[k].real + sound_signal[k].imaginary * sound_signal[k].imaginary);
-        printf("bin %d: %.2f (frequency %.2f Hz)\n", k, mag, k * (1.0 * 8 / 2) / 8);
-    }
-    //menu();
+    
+    menu();
 
     return 0;
 }
