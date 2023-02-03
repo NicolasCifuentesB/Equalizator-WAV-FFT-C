@@ -124,11 +124,7 @@ void fft(COMPLEX *sound, int size) {
 }
 
 void results(COMPLEX *moment){
-    fft(moment,wav->bytes_sec);
-    for (int k = 0; k < 8; k++) {
-        double magnitude = (int) sqrt(moment[k].real * moment[k].real + moment[k].imaginary * moment[k].imaginary);
-        printf("bin %d: %.2f (frequency %.2f Hz)\n", k, magnitude, k * (1.0 * wav->bytes_sec / 2) / wav->bytes_sec);
-    }
+    
 }
 
 void second(){
@@ -140,9 +136,15 @@ void second(){
     for (int i = begin ; i < end ; i++) {
         temporal[i].real = sound_signal[i].real;
         temporal[i].imaginary = sound_signal[i].imaginary;
+        printf("Complejo: %d + %di\n",temporal[i].real,temporal[i].imaginary);
     }
-
-    results(temporal);
+    /*
+    fft(temporal,wav->bytes_sec);
+    for (int i = 0; i < wav->bytes_sec; i++) {
+        double magnitude = (int) sqrt(temporal[i].real * temporal[i].real + temporal[i].imaginary * temporal[i].imaginary);
+        printf("bin %d: %.2f (frequency %.2f Hz)\n", i, magnitude, i * (1.0 * wav->bytes_sec / 2) / wav->bytes_sec);
+    }
+    */
 }
 
 void menu () {
